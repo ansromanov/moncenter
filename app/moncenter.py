@@ -115,7 +115,7 @@ if __name__ == "__main__":
     ddc = Ddc()
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("ddc", ddc)
-    engine.load(Path(__file__).with_name("Main.qml"))
+    engine.load(Path(__file__).resolve().with_name("Main.qml"))
     if not engine.rootObjects():
         sys.exit(1)
     ddc.refresh()
