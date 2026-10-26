@@ -43,3 +43,11 @@ kpackagetool6 -t Plasma/Applet -i package
 - Only the first display ddcutil detects is controlled.
 - Codes are standard MCCS ones (tested on an LG UltraGear GS85Q). Vendor-only picture modes are not exposed.
 - Switching to an input with nothing plugged in blanks the screen. Switch back with the monitor's own buttons.
+
+## Disclaimer
+
+MonCenter writes settings to your monitor's hardware over DDC/CI. Use it at your own risk. It comes with no warranty of any kind, and the authors aren't responsible for any damage, lost settings or other problems that come from using it. Monitors implement DDC/CI differently, so a value that works on one model can behave unexpectedly on another.
+
+## License
+
+[MIT](LICENSE)
