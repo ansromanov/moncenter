@@ -2,6 +2,8 @@
 
 Gaming-style control panel for external monitors on Linux. It talks DDC/CI through [ddcutil](https://www.ddcutil.com/), so you can change brightness, contrast, sharpness, color temperature, R/G/B gain, input source and speaker volume without the monitor's joystick.
 
+![MonCenter picture modes](docs/screenshot.png)
+
 - **Picture modes**: FPS, RTS/RPG, Racing, Cinema, Reader, Night, User. These are presets kept in the app, and you can save your own values into any of them.
 - **Input & Audio**: switch inputs, change volume, mute.
 - **Device Info**: serial, firmware, refresh rate, usage hours.
