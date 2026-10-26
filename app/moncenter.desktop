@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=MonCenter
+Comment=Brightness, contrast, color and input for your monitor (DDC/CI)
+Exec=moncenter
+Icon=video-display
+Categories=Settings;HardwareSettings;

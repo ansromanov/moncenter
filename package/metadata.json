@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Authors": [{ "Name": "andrei" }],
+        "Category": "System Information",
+        "Description": "Brightness, contrast, color and input for external monitors via DDC/CI",
+        "Icon": "video-display",
+        "Id": "org.andrei.ddcpanel",
+        "License": "MIT",
+        "Name": "Monitor Controls",
+        "Version": "1.0"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
