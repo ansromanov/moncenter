@@ -24,9 +24,9 @@ ApplicationWindow {
         { name: "FPS", icon: "crosshairs", values: { "14": 0x05, "10": 80, "12": 75, "87": 70 } },
         { name: "RTS/RPG", icon: "games-config-tiles", values: { "14": 0x05, "10": 70, "12": 70, "87": 55 } },
         { name: "Racing", icon: "flag", values: { "14": 0x08, "10": 85, "12": 70, "87": 60 } },
-        { name: "Cinema", icon: "video-television", values: { "14": 0x03, "10": 50, "12": 80, "87": 40 } },
-        { name: "Reader", icon: "accessories-text-editor", values: { "14": 0x03, "10": 35, "12": 60, "87": 50 } },
-        { name: "Night", icon: "weather-clear-night", values: { "14": 0x03, "10": 10, "12": 50, "87": 50 } },
+        { name: "Cinema", icon: "video-television-symbolic", values: { "14": 0x03, "10": 50, "12": 80, "87": 40 } },
+        { name: "Reader", icon: "view-readermode", values: { "14": 0x03, "10": 35, "12": 60, "87": 50 } },
+        { name: "Night", icon: "weather-clear-night-symbolic", values: { "14": 0x03, "10": 10, "12": 50, "87": 50 } },
         { name: "User", icon: "user", values: { "14": 0x0b, "10": 50, "12": 50, "87": 50, "16": 50, "18": 50, "1A": 50 } }
     ]
     readonly property var temps: [[0x03, "4000K"], [0x05, "6500K"], [0x08, "9300K"], [0x0b, "Custom (R/G/B)"]]
@@ -382,7 +382,7 @@ ApplicationWindow {
                     }
                 }
 
-                NavItem { text: "Picture"; icon: "color-management"; index: 0 }
+                NavItem { text: "Picture"; icon: "brightness-high"; index: 0 }
                 NavItem { text: "Input & Audio"; icon: "audio-card"; index: 1 }
                 NavItem { text: "Device Info"; icon: "help-about"; index: 2 }
 
