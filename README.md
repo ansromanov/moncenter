@@ -5,8 +5,10 @@ Gaming-style control panel for external monitors on Linux. It talks DDC/CI throu
 ![MonCenter picture modes](docs/screenshot.png)
 
 - **Picture modes**: FPS, RTS/RPG, Racing, Cinema, Reader, Night, User. These are presets kept in the app, and you can save your own values into any of them.
-- **Input & Audio**: switch inputs, change volume, mute.
+- **Input & Audio**: switch inputs, change volume, mute. After an input switch, MonCenter switches back after 10 seconds unless you press **Keep**, so an input with no picture can't leave you with a blank screen.
 - **Device Info**: serial, firmware, refresh rate, usage hours.
+
+- **Tray and shortcuts** (KDE Plasma): MonCenter keeps running in the system tray after you close the window. **Meta+Alt+1…7** switch modes from anywhere and show Plasma's on-screen popup. You can rebind them in System Settings → Keyboard → Shortcuts → MonCenter. The tray menu has the modes and a **Start at login** toggle.
 
 There's also a small KDE Plasma 6 panel widget in `package/` with the same controls.
 
@@ -42,7 +44,8 @@ kpackagetool6 -t Plasma/Applet -i package
 
 - Only the first display ddcutil detects is controlled.
 - Codes are standard MCCS ones (tested on an LG UltraGear GS85Q). Vendor-only picture modes are not exposed.
-- Switching to an input with nothing plugged in blanks the screen. Switch back with the monitor's own buttons.
+- The input auto-revert needs the monitor to keep answering DDC/CI on the original cable after switching. If yours doesn't, switch back with the monitor's own buttons.
+- Launching MonCenter again while it runs in the tray opens the existing window.
 
 ## Disclaimer
 

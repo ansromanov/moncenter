@@ -18,6 +18,8 @@ ApplicationWindow {
 
     readonly property var v: ddc.values
     property int page: 0
+    readonly property int currentMode: settings.mode
+    property int prevInput: -1
 
     // Picture modes are app-side presets: LG's own modes sit behind undocumented codes.
     readonly property var modes: [
@@ -49,6 +51,23 @@ ApplicationWindow {
         settings.presets = JSON.stringify(s)
         toast.show(modes[settings.mode].name + " mode saved")
     }
+    // A new input may have no signal, which blanks this screen; switch back unless the user confirms.
+    function switchInput(code) {
+        if (v["60"] === undefined || v["60"] === code)
+            return
+        prevInput = v["60"]
+        ddc.set("60", code)
+        keepInput.remaining = 10
+        keepInput.open()
+    }
+    function revertInput() {
+        ddc.set("60", prevInput)
+        keepInput.close()
+    }
+    function inputName(code) {
+        const i = inputs.find(x => x[0] === code)
+        return i ? i[1] : "the previous input"
+    }
     function resetMode() {
         const s = saved()
         delete s[settings.mode]
@@ -61,7 +80,7 @@ ApplicationWindow {
     height: 700
     minimumWidth: 1000
     minimumHeight: 660
-    visible: true
+    visible: !startHidden
     title: "MonCenter"
     color: cBg
     font.pixelSize: 13
@@ -497,12 +516,12 @@ ApplicationWindow {
                                 text: modelData[1]
                                 icon: modelData[2]
                                 selected: win.v["60"] === modelData[0]
-                                onClicked: ddc.set("60", modelData[0])
+                                onClicked: win.switchInput(modelData[0])
                             }
                         }
                     }
                     Label {
-                        text: "Switching to an input with nothing connected blanks this screen. Use the monitor's joystick to come back."
+                        text: "If the new input has no picture, MonCenter switches back after 10 seconds unless you press Keep."
                         color: win.cDim; font.pixelSize: 12
                     }
                     Panel {
@@ -566,6 +585,64 @@ ApplicationWindow {
                     text: ddc.error
                     elide: Text.ElideRight
                     color: win.cText
+                }
+            }
+
+            // Input countdown
+            Timer {
+                id: countdown
+                interval: 1000
+                repeat: true
+                running: keepInput.opened
+                onTriggered: if (--keepInput.remaining <= 0) win.revertInput()
+            }
+            Popup {
+                id: keepInput
+                objectName: "keepInput"
+                property int remaining: 10
+                anchors.centerIn: Overlay.overlay
+                width: 460
+                modal: true
+                closePolicy: Popup.NoAutoClose
+                padding: 0
+                Overlay.modal: Rectangle { color: "#b0000000" }
+                background: Rectangle { color: win.cPanel; border.color: win.cRed }
+                contentItem: ColumnLayout {
+                    spacing: 0
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 44
+                        color: win.cHead
+                        Label {
+                            x: 22
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Keep this input?"
+                            color: win.cText
+                            font { pixelSize: 15; bold: true }
+                        }
+                    }
+                    // shrinks as the countdown runs
+                    Rectangle {
+                        Layout.preferredWidth: parent.width * keepInput.remaining / 10
+                        implicitHeight: 2
+                        color: win.cRed
+                        Behavior on Layout.preferredWidth { NumberAnimation { duration: 1000 } }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.margins: 22
+                        text: "Switching back to " + win.inputName(win.prevInput) + " in " + keepInput.remaining + " s."
+                        color: win.cText
+                        wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.margins: 22
+                        Layout.topMargin: 0
+                        spacing: 10
+                        Item { Layout.fillWidth: true }
+                        RogButton { text: "Switch back"; primary: true; onClicked: win.revertInput() }
+                        RogButton { text: "Keep"; primary: true; onClicked: keepInput.close() }
+                    }
                 }
             }
 
