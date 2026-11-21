@@ -26,6 +26,12 @@ MonCenter reads the monitor's DDC/CI capabilities at startup and shows only the 
 
 Run it with `moncenter`, or `./app/moncenter.py` from a checkout.
 
+## Test
+
+```bash
+tests/run.sh   # parsers, QML load (offscreen) and installer checks; no monitor needed
+```
+
 ## Notes
 
 - Only the first display ddcutil detects is controlled.
