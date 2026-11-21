@@ -12,38 +12,24 @@ Gaming-style control panel for external monitors on Linux. It talks DDC/CI throu
 
 There's also a small KDE Plasma 6 panel widget in `package/` with the same controls.
 
-## Requirements
-
-- `ddcutil`, with your user able to open `/dev/i2c-*` (add yourself to the `i2c` group if needed)
-- `pyside6`
+## Install
 
 ```bash
-yay -S ddcutil pyside6
+./install.sh              # deps, DDC/CI access, app, launcher; reports what your monitor supports
+./install.sh --widget     # also the Plasma panel widget
+./install.sh --uninstall
 ```
 
-## Run
+It supports pacman, apt, dnf and zypper, loads `i2c-dev`, and sets up `/dev/i2c-*` access if ddcutil can't see your monitor (you may need to log out and in once). Manual requirements: `ddcutil` and `pyside6`.
 
-```bash
-./app/moncenter.py
-```
+MonCenter reads the monitor's DDC/CI capabilities at startup and shows only the controls, color temperatures and inputs it supports. Picture mode presets snap to the nearest supported color temperature.
 
-Install a launcher and a start-menu entry:
-
-```bash
-ln -sf "$PWD/app/moncenter.py" ~/.local/bin/moncenter
-sed "s|^Exec=.*|Exec=$HOME/.local/bin/moncenter|" app/moncenter.desktop > ~/.local/share/applications/moncenter.desktop
-```
-
-Install the panel widget:
-
-```bash
-kpackagetool6 -t Plasma/Applet -i package
-```
+Run it with `moncenter`, or `./app/moncenter.py` from a checkout.
 
 ## Notes
 
 - Only the first display ddcutil detects is controlled.
-- Codes are standard MCCS ones (tested on an LG UltraGear GS85Q). Vendor-only picture modes are not exposed.
+- Codes are standard MCCS ones (tested on an LG UltraGear GS85Q and an AOC 24G2W1G4). Vendor-only picture modes are not exposed.
 - The input auto-revert needs the monitor to keep answering DDC/CI on the original cable after switching. If yours doesn't, switch back with the monitor's own buttons.
 - Launching MonCenter again while it runs in the tray opens the existing window.
 

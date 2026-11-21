@@ -17,7 +17,44 @@ from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 # shortcut: drives ddcutil's default (first) display only; add --display N when a second monitor appears.
-READ_CMD = "ddcutil detect --terse && ddcutil getvcp 10 12 87 14 16 18 1A 60 62 8D AE C0 C9 --terse"
+# Features MonCenter reads: unsupported ones just come back as ERR.
+READ_CODES = ["10", "12", "87", "14", "16", "18", "1A", "60", "62", "8D", "C0"]
+ALWAYS_READ = ["AE", "C9"]
+
+
+def parse_caps(out):
+    """Turn `ddcutil capabilities` output into {feature code: [allowed values]}; empty if unreadable."""
+    start = out.find("vcp(")
+    if start < 0:
+        return {}
+    caps, depth, token, cur = {}, 1, "", None
+    for ch in out[start + 4:]:
+        if ch == "(":
+            depth += 1
+            if depth == 2:
+                cur, token = token.upper(), ""
+                caps[cur] = []
+                continue
+        elif ch == ")":
+            depth -= 1
+            if depth == 1:
+                if token:
+                    caps[cur].append(int(token, 16))
+                cur, token = None, ""
+                continue
+            if depth == 0:
+                if token:
+                    caps.setdefault(token.upper(), [])
+                break
+        if ch.isspace():
+            if token:
+                (caps[cur].append(int(token, 16)) if cur else caps.setdefault(token.upper(), []))
+                token = ""
+        else:
+            token += ch
+    if token and depth == 1:
+        caps.setdefault(token.upper(), [])
+    return caps
 
 
 def parse(out):
@@ -30,6 +67,8 @@ def parse(out):
             values[m[1]] = int(m[2], 16)
         elif m := re.match(r"VCP C9 CNC \S+ \S+ x(\w+) x(\w+)", line):
             values["C9"] = f"{int(m[1], 16)}.{int(m[2], 16)}"
+        elif m := re.match(r"VCP (\w\w) CNC x\w+ x\w+ x\w+ x(\w+)", line):
+            values[m[1]] = int(m[2], 16)  # some monitors report discrete features (e.g. 14) as continuous: the value is SL
         elif m := re.match(r"\s*Monitor:\s+\w+:([^:]+):(.*)", line):
             model, serial = m[1], m[2]
     return values, model, serial
@@ -41,6 +80,7 @@ class Ddc(QObject):
     def __init__(self):
         super().__init__()
         self._values, self._pending = {}, {}
+        self._caps = {}
         self._model = self._serial = self._error = ""
         self._queue, self._job = [], ""
         self._proc = QProcess(self)
@@ -49,6 +89,8 @@ class Ddc(QObject):
         self._timer.timeout.connect(self._flush)
 
     values = Property("QVariantMap", lambda s: s._values, notify=changed)
+    # Features the monitor advertises: {code: [allowed values]}. Empty until detected or if it can't say.
+    caps = Property("QVariantMap", lambda s: s._caps, notify=changed)
     model = Property(str, lambda s: s._model, notify=changed)
     serial = Property(str, lambda s: s._serial, notify=changed)
     error = Property(str, lambda s: s._error, notify=changed)
@@ -56,8 +98,15 @@ class Ddc(QObject):
 
     @Slot()
     def refresh(self):
-        self._queue.append(("read", READ_CMD))
+        if not self._caps:
+            self._queue.append(("caps", "ddcutil capabilities --terse"))
+        self._queue.append(("read", self._read_cmd()))
         self._next()
+
+    def _read_cmd(self):
+        # Capability strings under-report (this AOC answers sharpness without listing it), so ask for everything;
+        # unreadable features come back as ERR and are skipped.
+        return f"ddcutil detect --terse && ddcutil getvcp {' '.join(READ_CODES + ALWAYS_READ)} --terse"
 
     @Slot(str, int)
     def set(self, code, value):
@@ -88,9 +137,15 @@ class Ddc(QObject):
     def _done(self, code, _status):
         out = bytes(self._proc.readAllStandardOutput()).decode(errors="replace")
         err = bytes(self._proc.readAllStandardError()).decode(errors="replace")
-        self._error = "" if code == 0 else (err or out).strip() or "ddcutil failed"
-        if code == 0 and self._job == "read":
-            values, self._model, self._serial = parse(out)
+        if self._job == "caps":
+            self._caps = parse_caps(out)
+            code = 0
+        values, model, serial = parse(out) if self._job == "read" else ({}, "", "")
+        # A feature the monitor can't read (VCP ERR) makes ddcutil exit 1 but isn't a failure if the rest came through.
+        ok = code == 0 or bool(values)
+        self._error = "" if ok else (err or out).strip() or "ddcutil failed"
+        if ok and self._job == "read":
+            self._model, self._serial = model, serial
             # Keep edits that haven't reached the monitor yet.
             self._values = {**values, **self._pending}
         self.changed.emit()
@@ -161,10 +216,13 @@ def selftest():
     values, model, serial = parse(
         "   Monitor:          GSM:LG ULTRAGEAR:000TEST00000\n"
         "VCP 10 C 36 100\nVCP 14 SNC x03\nVCP 1A C 50 100\n"
-        "VCP AE C 31580 0\nVCP C9 CNC xff xff x03 x00\n"
+        "VCP AE C 31580 0\nVCP C9 CNC xff xff x03 x00\nVCP 62 CNC x00 x64 x00 x4b\n"
     )
-    assert values == {"10": 36, "14": 3, "1A": 50, "AE": 31580, "C9": "3.0"}, values
+    assert values == {"10": 36, "14": 3, "1A": 50, "AE": 31580, "C9": "3.0", "62": 75}, values
     assert (model, serial) == ("LG ULTRAGEAR", "000TEST00000")
+    caps = parse_caps("(prot(monitor)vcp(02 10 14(01 05 0B) 60(01 0F 11 ) AC)mccs_ver(2.2))")
+    assert caps == {"02": [], "10": [], "14": [1, 5, 11], "60": [1, 15, 17], "AC": []}, caps
+    assert parse_caps("garbage") == {}
     print("ok")
 
 

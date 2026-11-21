@@ -31,15 +31,52 @@ ApplicationWindow {
         { name: "Night", icon: "weather-clear-night-symbolic", values: { "14": 0x03, "10": 10, "12": 50, "87": 50 } },
         { name: "User", icon: "user", values: { "14": 0x0b, "10": 50, "12": 50, "87": 50, "16": 50, "18": 50, "1A": 50 } }
     ]
-    readonly property var temps: [[0x03, "4000K"], [0x05, "6500K"], [0x08, "9300K"], [0x0b, "Custom (R/G/B)"]]
-    readonly property var inputs: [[0x0f, "DisplayPort 1", "video-display"], [0x10, "DisplayPort 2", "video-display"],
-        [0x11, "HDMI 1", "video-television"], [0x12, "HDMI 2", "video-television"]]
+    // What the monitor advertises (VCP capabilities): {code: [allowed values]}. Empty until detected.
+    readonly property var caps: ddc.caps
+    // Capability strings under-report, so a feature also counts if the monitor answered a read for it.
+    function has(code) {
+        return Object.keys(caps).length === 0 || caps[code] !== undefined || v[code] !== undefined
+    }
+    function allows(code, value) {
+        const list = caps[code]
+        return !list || list.length === 0 || list.indexOf(value) >= 0
+    }
+    // Every standard MCCS value we know a name for; the lists below keep only what this monitor supports.
+    readonly property var allTemps: [[0x01, "sRGB", 0], [0x03, "4000K", 4000], [0x04, "5000K", 5000], [0x05, "6500K", 6500],
+        [0x06, "7500K", 7500], [0x07, "8200K", 8200], [0x08, "9300K", 9300], [0x09, "10000K", 10000],
+        [0x0a, "11500K", 11500], [0x0b, "Custom (R/G/B)", 0]]
+    readonly property var allInputs: [[0x01, "VGA", "video-display"], [0x03, "DVI", "video-display"],
+        [0x0f, "DisplayPort 1", "video-display"], [0x10, "DisplayPort 2", "video-display"],
+        [0x11, "HDMI 1", "video-television"], [0x12, "HDMI 2", "video-television"], [0x1b, "USB-C", "video-display"]]
+    readonly property var temps: allTemps.filter(t => allows("14", t[0]))
+    readonly property var inputs: allInputs.filter(t => allows("60", t[0]))
+    // Some monitors answer volume reads without having speakers, so audio goes by the capability list only.
+    readonly property bool hasAudio: Object.keys(caps).length === 0 || caps["62"] !== undefined
+    readonly property bool hasRgb: has("16") && has("18") && has("1A") && allows("14", 0x0b)
+    // Presets name a color temperature this monitor may lack: use the closest supported one, and skip unsupported codes.
+    function fit(values) {
+        const out = {}
+        for (const k in values) {
+            if (!has(k))
+                continue
+            let val = values[k]
+            if (k === "14" && !allows("14", val)) {
+                const want = allTemps.find(t => t[0] === val)
+                const pool = temps.filter(t => t[2] > 0)
+                if (!want || !pool.length)
+                    continue
+                val = pool.reduce((a, b) => Math.abs(b[2] - want[2]) < Math.abs(a[2] - want[2]) ? b : a)[0]
+            }
+            out[k] = val
+        }
+        return out
+    }
 
     function saved() {
         try { return JSON.parse(settings.presets) } catch (e) { return {} }
     }
     function modeValues(i) {
-        return saved()[i] ?? modes[i].values
+        return fit(saved()[i] ?? modes[i].values)
     }
     function selectMode(i) {
         settings.mode = i
@@ -47,7 +84,10 @@ ApplicationWindow {
     }
     function saveMode() {
         const s = saved()
-        s[settings.mode] = { "14": v["14"], "10": v["10"], "12": v["12"], "87": v["87"], "16": v["16"], "18": v["18"], "1A": v["1A"] }
+        s[settings.mode] = {}
+        for (const k of ["14", "10", "12", "87", "16", "18", "1A"])
+            if (v[k] !== undefined)
+                s[settings.mode][k] = v[k]
         settings.presets = JSON.stringify(s)
         toast.show(modes[settings.mode].name + " mode saved")
     }
@@ -72,7 +112,7 @@ ApplicationWindow {
         const s = saved()
         delete s[settings.mode]
         settings.presets = JSON.stringify(s)
-        ddc.apply(modes[settings.mode].values)
+        ddc.apply(modeValues(settings.mode))
         toast.show(modes[settings.mode].name + " mode reset")
     }
 
@@ -480,9 +520,9 @@ ApplicationWindow {
                             title: "Image"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            RogSlider { label: "Brightness"; code: "10" }
-                            RogSlider { label: "Contrast"; code: "12" }
-                            RogSlider { label: "Sharpness"; code: "87" }
+                            RogSlider { label: "Brightness"; code: "10"; visible: win.has("10") }
+                            RogSlider { label: "Contrast"; code: "12"; visible: win.has("12") }
+                            RogSlider { label: "Sharpness"; code: "87"; visible: win.has("87") }
                         }
                         Panel {
                             title: "Color"
@@ -490,12 +530,13 @@ ApplicationWindow {
                             Layout.fillHeight: true
                             RowLayout {
                                 spacing: 18
+                                visible: win.temps.length > 0
                                 Label { text: "Color Temp."; color: win.cText; Layout.preferredWidth: 100 }
                                 RogCombo { code: "14"; options: win.temps; Layout.fillWidth: true }
                             }
-                            RogSlider { label: "R"; code: "16"; active: win.v["14"] === 0x0b }
-                            RogSlider { label: "G"; code: "18"; active: win.v["14"] === 0x0b }
-                            RogSlider { label: "B"; code: "1A"; active: win.v["14"] === 0x0b }
+                            RogSlider { label: "R"; code: "16"; active: win.v["14"] === 0x0b; visible: win.hasRgb }
+                            RogSlider { label: "G"; code: "18"; active: win.v["14"] === 0x0b; visible: win.hasRgb }
+                            RogSlider { label: "B"; code: "1A"; active: win.v["14"] === 0x0b; visible: win.hasRgb }
                         }
                     }
                     Item { Layout.fillHeight: true }
@@ -526,11 +567,13 @@ ApplicationWindow {
                     }
                     Panel {
                         title: "Audio"
+                        visible: win.hasAudio
                         Layout.topMargin: 14
                         Layout.preferredWidth: 520
                         RogSlider { label: "Volume"; code: "62" }
                         RowLayout {
                             spacing: 18
+                            visible: caps["8D"] !== undefined || v["8D"] !== undefined
                             Label { text: "Mute"; color: win.cText; Layout.preferredWidth: 100 }
                             // VCP 8D: 1 = muted, 2 = unmuted
                             RogSwitch { on: win.v["8D"] === 1; onToggled: ddc.set("8D", on ? 2 : 1) }
