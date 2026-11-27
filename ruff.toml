@@ -1,0 +1,5 @@
+# Lint only: pyflakes and pycodestyle. Formatting is left as written.
+line-length = 125
+
+[lint]
+select = ["E", "F", "W"]
