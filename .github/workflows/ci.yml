@@ -1,0 +1,32 @@
+name: CI
+
+# One gate for pull requests and pushes to main. Runs on Arch (the target distro) so PySide6 and
+# Qt are the versions the app is used with.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lint, file size, tests
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Dependencies
+        run: |
+          pacman -Syu --noconfirm --needed git python pyside6 ruff shellcheck
+          git config --global --add safe.directory '*'
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Ruff
+        run: ruff check app tests
+      - name: Shellcheck
+        run: shellcheck install.sh tests/run.sh
+      - name: File size limit
+        run: python3 scripts/check-file-size.py
+      - name: Tests
+        run: tests/run.sh
