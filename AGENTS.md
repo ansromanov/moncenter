@@ -39,6 +39,8 @@ fix; say in the pull request which monitor you tried a change on, or why you cou
 
 - Work in a git worktree on a branch, never on `main`. Fetch and base the branch on the latest `origin/main`.
 - `main` is protected: every change is a pull request with green CI. Never push to `main`.
+- Right after opening a pull request, turn on auto-merge: `gh pr merge --auto --squash`. GitHub merges it when the
+  required checks pass; do not merge by hand and do not use `--admin`. Dependabot's pull requests get this from a workflow.
 - Commit messages and pull request titles are [Conventional Commits](https://www.conventionalcommits.org)
   (`feat:`, `fix:`, `docs:`, `refactor:`, `ci:`, `chore:`).
 - Files stay at or below 800 lines (`scripts/check-file-size.py`). Split the file; never raise the limit.
